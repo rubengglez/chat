@@ -1,9 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct CreateUserRequest {
     pub username: String,
+}
+
+#[derive(Deserialize)]
+pub struct DeleteUserRequest {
+    pub id: String,
 }
 
 #[derive(Serialize)]
@@ -22,5 +28,9 @@ impl User {
         };
 
         Ok(user)
+    }
+
+    pub fn delete_user(id: Uuid) -> Result<bool, Infallible> {
+        Ok(true)
     }
 }
