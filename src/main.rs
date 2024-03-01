@@ -1,17 +1,27 @@
 mod shared;
 mod user;
 
+use std::time::Duration;
+
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::StatusCode,
     response::Html,
     routing::{delete, get, post},
     Json, Router,
 };
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use user::{CreateUserRequest, User, UserResponse};
 use uuid::Uuid;
 
-async fn handler_user(Json(payload): Json<CreateUserRequest>) -> (StatusCode, Json<UserResponse>) {
+// we can also write a custom extractor that grabs a connection from the pool
+// which setup is appropriate depends on your application
+struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
+
+async fn handler_user(
+     State(pool): State<PgPool>,
+    Json(payload): Json<CreateUserRequest>,
+) -> (StatusCode, Json<UserResponse>) {
     let user_response = User::create_user(payload).unwrap();
     (StatusCode::CREATED, Json(user_response))
 }
@@ -25,11 +35,23 @@ async fn handler_delete_user(Path(id): Path<Uuid>) -> (StatusCode, ()) {
 
 #[tokio::main]
 async fn main() {
+    let db_connection_str = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:password@localhost:20000".to_string());
+
+    // set up connection pool
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(&db_connection_str)
+        .await
+        .expect("can't connect to database");
+
     // build our application with a route
     let app = Router::new()
         .route("/", get(handler))
         .route("/users", post(handler_user))
-        .route("/users/:id", delete(handler_delete_user));
+        .route("/users/:id", delete(handler_delete_user))
+        .with_state(pool);
 
     // run it
     let listener = tokio::net::TcpListener::bind("127.0.0.1:7000")

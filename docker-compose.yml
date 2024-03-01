@@ -1,0 +1,29 @@
+version: '3.5'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'password'
+      POSTGRES_DB: 'chat'
+      PGDATA: ../Around-psql-volume
+    volumes:
+      - ./.devcontainer/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres-data:/var/lib/postgresql/data:Z
+    ports:
+      - 20000:5432
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 28888:8080
+
+volumes:
+  postgres-data:
+
+networks:
+  chat_dev_net:
+    external: true
