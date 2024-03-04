@@ -1,3 +1,6 @@
+pub mod domain;
+pub mod infrastructure;
+
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use uuid::Uuid;

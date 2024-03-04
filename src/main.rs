@@ -10,8 +10,8 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use sqlx::{postgres::PgPoolOptions, PgPool};
-use user::{CreateUserRequest, User, UserResponse};
+use sqlx::{postgres::PgPoolOptions, PgPool, Postgres};
+use user::{domain::UserRepository, CreateUserRequest, User, UserResponse};
 use uuid::Uuid;
 
 // we can also write a custom extractor that grabs a connection from the pool
@@ -19,7 +19,7 @@ use uuid::Uuid;
 struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
 
 async fn handler_user(
-     State(pool): State<PgPool>,
+    State(pool): State<PgPool>,
     Json(payload): Json<CreateUserRequest>,
 ) -> (StatusCode, Json<UserResponse>) {
     let user_response = User::create_user(payload).unwrap();
@@ -33,10 +33,15 @@ async fn handler_delete_user(Path(id): Path<Uuid>) -> (StatusCode, ()) {
     }
 }
 
+struct DependenciesBuilder<'a> {
+    pub user_repository: &'a dyn UserRepository,
+}
+
+
 #[tokio::main]
 async fn main() {
     let db_connection_str = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:password@localhost:20000".to_string());
+        .unwrap_or_else(|_| "postgres://postgres:password@localhost:20000/chat".to_string());
 
     // set up connection pool
     let pool = PgPoolOptions::new()
@@ -46,12 +51,19 @@ async fn main() {
         .await
         .expect("can't connect to database");
 
+    sqlx::migrate!("db/migrations").run(&pool).await.expect("can't migrate");
+
+    let dependencies = Dependencies{
+        user_repository: PostgresqlUserRepository::new(&pool),
+    }
+
     // build our application with a route
     let app = Router::new()
         .route("/", get(handler))
         .route("/users", post(handler_user))
         .route("/users/:id", delete(handler_delete_user))
-        .with_state(pool);
+        .with_state(pool)
+        .with_state(dependencies);
 
     // run it
     let listener = tokio::net::TcpListener::bind("127.0.0.1:7000")
