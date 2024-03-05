@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 
 use super::domain::UserRepository;
@@ -12,6 +13,7 @@ impl PostgresqlUserRepository {
     }
 }
 
+#[async_trait]
 impl UserRepository for PostgresqlUserRepository {
     async fn save(&mut self, user: super::User) {
         sqlx::query("INSERT INTO users VALUES (?, ?)")
