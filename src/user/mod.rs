@@ -21,7 +21,12 @@ pub struct UserResponse {
     pub id: usize,
 }
 
-pub struct User {}
+#[derive(sqlx::FromRow)]
+pub struct User {
+    id: Uuid,
+    username: String,
+    password_hash: String,
+}
 
 impl User {
     pub fn create_user(data: CreateUserRequest) -> Result<UserResponse, Infallible> {

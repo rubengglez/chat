@@ -2,17 +2,22 @@ use sqlx::{Pool, Postgres};
 
 use super::domain::UserRepository;
 
-pub struct PostgresqlUserRepository<'a> {
-    db: &'a Pool<Postgres>,
+pub struct PostgresqlUserRepository {
+    db: Pool<Postgres>,
 }
 
-impl<'a> PostgresqlUserRepository<'a> {
-    fn new(db: &Pool<Postgres>) -> PostgresqlUserRepository {
+impl PostgresqlUserRepository {
+    pub fn new(db: Pool<Postgres>) -> PostgresqlUserRepository {
         PostgresqlUserRepository { db }
     }
 }
 
 impl UserRepository for PostgresqlUserRepository {
-	fn save(&mut self, user: super::User) {
-	}
+    async fn save(&mut self, user: super::User) {
+        sqlx::query("INSERT INTO users VALUES (?, ?)")
+            .bind(user.username)
+						.bind(user.password_hash)
+            .execute(&self.db)
+            .await.unwrap();
+    }
 }

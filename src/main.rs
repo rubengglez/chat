@@ -1,7 +1,7 @@
 mod shared;
 mod user;
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use axum::{
     extract::{Path, State},
@@ -13,6 +13,8 @@ use axum::{
 use sqlx::{postgres::PgPoolOptions, PgPool, Postgres};
 use user::{domain::UserRepository, CreateUserRequest, User, UserResponse};
 use uuid::Uuid;
+
+use crate::user::infrastructure::PostgresqlUserRepository;
 
 // we can also write a custom extractor that grabs a connection from the pool
 // which setup is appropriate depends on your application
@@ -33,8 +35,9 @@ async fn handler_delete_user(Path(id): Path<Uuid>) -> (StatusCode, ()) {
     }
 }
 
-struct DependenciesBuilder<'a> {
-    pub user_repository: &'a dyn UserRepository,
+#[derive(Clone)]
+struct Dependencies {
+    pub user_repository: Arc<dyn UserRepository>,
 }
 
 
@@ -54,8 +57,8 @@ async fn main() {
     sqlx::migrate!("db/migrations").run(&pool).await.expect("can't migrate");
 
     let dependencies = Dependencies{
-        user_repository: PostgresqlUserRepository::new(&pool),
-    }
+        user_repository: Arc::new(PostgresqlUserRepository::new(pool.clone())),
+    };
 
     // build our application with a route
     let app = Router::new()
