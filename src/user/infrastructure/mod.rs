@@ -18,8 +18,9 @@ impl UserRepository for PostgresqlUserRepository {
     async fn save(&mut self, user: super::User) {
         sqlx::query("INSERT INTO users VALUES (?, ?)")
             .bind(user.username)
-						.bind(user.password_hash)
+            .bind(user.password_hash)
             .execute(&self.db)
-            .await.unwrap();
+            .await
+            .unwrap();
     }
 }

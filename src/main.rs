@@ -1,7 +1,10 @@
+#![deny(missing_debug_implementations)]
+
 mod shared;
 mod user;
 
 use std::{sync::Arc, time::Duration};
+use log::{info, debug};
 
 use axum::{
     extract::{Path, State},
@@ -21,7 +24,7 @@ use crate::user::infrastructure::PostgresqlUserRepository;
 struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
 
 async fn handler_user(
-    State(pool): State<PgPool>,
+    State(dependencies): State<Dependencies>,
     Json(payload): Json<CreateUserRequest>,
 ) -> (StatusCode, Json<UserResponse>) {
     let user_response = User::create_user(payload).unwrap();
@@ -40,11 +43,15 @@ struct Dependencies {
     pub user_repository: Arc<dyn UserRepository>,
 }
 
-
 #[tokio::main]
 async fn main() {
+    pretty_env_logger::init();
+
+    info!("Starting chat server");
     let db_connection_str = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost:20000/chat".to_string());
+
+    debug!("DB connection: {}", db_connection_str);
 
     // set up connection pool
     let pool = PgPoolOptions::new()
@@ -54,9 +61,12 @@ async fn main() {
         .await
         .expect("can't connect to database");
 
-    sqlx::migrate!("db/migrations").run(&pool).await.expect("can't migrate");
+    sqlx::migrate!("db/migrations")
+        .run(&pool)
+        .await
+        .expect("can't migrate");
 
-    let dependencies = Dependencies{
+    let dependencies = Dependencies {
         user_repository: Arc::new(PostgresqlUserRepository::new(pool.clone())),
     };
 
@@ -65,8 +75,8 @@ async fn main() {
         .route("/", get(handler))
         .route("/users", post(handler_user))
         .route("/users/:id", delete(handler_delete_user))
-        .with_state(pool)
-        .with_state(dependencies);
+        .with_state(dependencies)
+        .with_state(pool);
 
     // run it
     let listener = tokio::net::TcpListener::bind("127.0.0.1:7000")
@@ -77,5 +87,9 @@ async fn main() {
 }
 
 async fn handler() -> Html<&'static str> {
-    Html("<h1>Hello, World!</h1>")
+    Html(
+        r#"
+    <!doctype html> <html>     <head>         <title>My Chat</title>     </head>     <body>         <h3>Rust Microservice</h3> <p>Used to learn more about Rust microservices and Rust in general.</p>    </body> </html>
+        "#,
+    )
 }
