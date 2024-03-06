@@ -5,6 +5,7 @@ mod user;
 
 use std::{sync::Arc, time::Duration};
 use log::{info, debug};
+use dotenv::dotenv;
 
 use axum::{
     extract::{Path, State},
@@ -46,10 +47,10 @@ struct Dependencies {
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
+    dotenv().ok();
 
     info!("Starting chat server");
-    let db_connection_str = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:password@localhost:20000/chat".to_string());
+    let db_connection_str = std::env::var("DATABASE_URL").unwrap();
 
     debug!("DB connection: {}", db_connection_str);
 
